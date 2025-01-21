@@ -90,7 +90,7 @@ func (pm *ProcessManager) StartProcess(name string, command string, args ...stri
 	return pi, nil
 }
 
-func StopProcess(pi *ProcessInfo) error {
+func (pm *ProcessManager) StopProcess(pi *ProcessInfo) error {
 	if pi.Cmd.Process == nil {
 		return fmt.Errorf("process not running")
 	}
@@ -102,4 +102,23 @@ func StopProcess(pi *ProcessInfo) error {
 
 	pi.Status = "stopped"
 	return nil
+}
+
+func (pm *ProcessManager) GetProcess(name string) (*ProcessInfo, error) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	return pm.processes[name], nil
+}
+
+func (pm *ProcessManager) ListProcesses() []*ProcessInfo {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	processes := make([]*ProcessInfo, 0, len(pm.processes))
+	for _, pi := range pm.processes {
+		processes = append(processes, pi)
+	}
+
+	return processes
 }

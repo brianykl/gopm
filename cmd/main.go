@@ -36,23 +36,26 @@ func main() {
 		},
 	}
 
-	// stopCmd := &cobra.Command{
-	// 	Use:   "stop",
-	// 	Short: "stop a process",
-	// 	Run: func(cmd *cobra.Command, args []string) {
-	// 		if len(args) < 1 {
-	// 			fmt.Println("usage: gopm stop <name>")
-	// 			return
-	// 		}
-	// 		name := args[0]
-	// 		err := process.StopProcess(name)
-	// 		if err != nil {
-	// 			fmt.Println(err)
-	// 		}
-	// 	},
-	// }
+	stopCmd := &cobra.Command{
+		Use:   "stop",
+		Short: "stop a process",
+		Run: func(cmd *cobra.Command, args []string) {
+			if len(args) < 1 {
+				fmt.Println("usage: gopm stop <name>")
+				return
+			}
+			name := args[0]
+			pi, err := processManager.GetProcess(name)
+
+			err = processManager.StopProcess(pi)
+			if err != nil {
+				fmt.Println(err)
+			}
+		},
+	}
 
 	rootCmd.AddCommand(startCmd)
+	rootCmd.AddCommand(stopCmd)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
