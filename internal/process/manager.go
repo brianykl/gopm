@@ -3,7 +3,9 @@ package process
 import (
 	"bufio"
 	"fmt"
+	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 )
 
@@ -13,7 +15,25 @@ type ProcessInfo struct {
 	Status string
 }
 
-func StartProcess(name string, command string, args ...string) (*ProcessInfo, error) {
+type ProcessManager struct {
+	mu        sync.Mutex
+	processes map[string]*ProcessInfo
+}
+
+func NewProcessManager() *ProcessManager {
+	return &ProcessManager{
+		processes: make(map[string]*ProcessInfo),
+	}
+}
+
+func (pm *ProcessManager) StartProcess(name string, command string, args ...string) (*ProcessInfo, error) {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	if _, exists := pm.processes[name]; exists {
+		return nil, fmt.Errorf("process with name %q already exists", name)
+	}
+	// fmt.Printf("executing command: %s %v\n", command, args)
 	cmd := exec.Command(command, args...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -25,7 +45,8 @@ func StartProcess(name string, command string, args ...string) (*ProcessInfo, er
 	if err != nil {
 		return nil, err
 	}
-
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
@@ -58,6 +79,13 @@ func StartProcess(name string, command string, args ...string) (*ProcessInfo, er
 		Name:   name,
 		Status: "running",
 	}
+
+	go func(pi *ProcessInfo) {
+		_ = pi.Cmd.Wait()
+		pm.mu.Lock()
+		defer pm.mu.Unlock()
+		pi.Status = "exited"
+	}(pi)
 
 	return pi, nil
 }

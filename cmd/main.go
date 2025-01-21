@@ -16,6 +16,7 @@ func main() {
 			fmt.Println("hello world!")
 		},
 	}
+	processManager := process.NewProcessManager()
 	startCmd := &cobra.Command{
 		Use:   "start",
 		Short: "start a process",
@@ -27,7 +28,8 @@ func main() {
 			name := args[0]
 			command := args[1]
 			processArgs := args[2:]
-			_, err := process.StartProcess(name, command, processArgs...)
+			// fmt.Printf("starting process: name=%s, command=%s, args=%v\n", name, command, processArgs)
+			_, err := processManager.StartProcess(name, command, processArgs...)
 			if err != nil {
 				fmt.Println(err)
 			}
