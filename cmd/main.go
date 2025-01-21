@@ -45,9 +45,20 @@ func main() {
 				return
 			}
 			name := args[0]
-			pi, err := processManager.GetProcess(name)
+			pi, _ := processManager.GetProcess(name)
 
-			err = processManager.StopProcess(pi)
+			err := processManager.StopProcess(pi)
+			if err != nil {
+				fmt.Println(err)
+			}
+		},
+	}
+
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "list all processes",
+		Run: func(cmd *cobra.Command, args []string) {
+			err := processManager.ListProcesses()
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -56,6 +67,8 @@ func main() {
 
 	rootCmd.AddCommand(startCmd)
 	rootCmd.AddCommand(stopCmd)
+	rootCmd.AddCommand(listCmd)
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
