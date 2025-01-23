@@ -3,37 +3,37 @@ package process
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"os/exec"
 	"sync"
 	"syscall"
 )
 
-type ProcessInfo struct {
+type ProcessInformation struct {
 	Cmd    *exec.Cmd
 	Name   string
+	PID    int
 	Status string
 }
 
 type ProcessManager struct {
 	mu        sync.Mutex
-	processes map[string]*ProcessInfo
+	processes map[string]*ProcessInformation
 }
 
 func NewProcessManager() *ProcessManager {
 	return &ProcessManager{
-		processes: make(map[string]*ProcessInfo),
+		processes: make(map[string]*ProcessInformation),
 	}
 }
 
-func (pm *ProcessManager) StartProcess(name string, command string, args ...string) (*ProcessInfo, error) {
+func (pm *ProcessManager) StartProcess(name string, command string, args ...string) (*ProcessInformation, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	if _, exists := pm.processes[name]; exists {
 		return nil, fmt.Errorf("process with name %q already exists", name)
 	}
-	// fmt.Printf("executing command: %s %v\n", command, args)
+	fmt.Printf("executing command: %s %v\n", command, args)
 	cmd := exec.Command(command, args...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -45,13 +45,22 @@ func (pm *ProcessManager) StartProcess(name string, command string, args ...stri
 	if err != nil {
 		return nil, err
 	}
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// cmd.Stdout = os.Stdout
+	// cmd.Stderr = os.Stderr
 	err = cmd.Start()
 	if err != nil {
 		return nil, err
 	}
 
+	pi := &ProcessInformation{
+		Cmd:    cmd,
+		Name:   name,
+		PID:    cmd.Process.Pid,
+		Status: "running",
+	}
+	pm.processes[name] = pi
+	fmt.Printf("process %s stored", name)
+	fmt.Println("processes: ", pm.processes)
 	stdoutReader := bufio.NewScanner(stdout)
 	go func() {
 		for stdoutReader.Scan() {
@@ -74,23 +83,23 @@ func (pm *ProcessManager) StartProcess(name string, command string, args ...stri
 		}
 	}()
 
-	pi := &ProcessInfo{
-		Cmd:    cmd,
-		Name:   name,
-		Status: "running",
-	}
+	go func(pi *ProcessInformation) {
+		if waitErr := pi.Cmd.Wait(); waitErr != nil {
+			fmt.Printf("process %s exited with error: %v\n", pi.Name, waitErr)
+		} else {
+			fmt.Printf("process %s exited successfully\n", pi.Name)
+		}
 
-	go func(pi *ProcessInfo) {
-		_ = pi.Cmd.Wait()
 		pm.mu.Lock()
-		defer pm.mu.Unlock()
 		pi.Status = "exited"
+		pm.mu.Unlock()
+
 	}(pi)
 
 	return pi, nil
 }
 
-func (pm *ProcessManager) StopProcess(pi *ProcessInfo) error {
+func (pm *ProcessManager) StopProcess(pi *ProcessInformation) error {
 	if pi.Cmd.Process == nil {
 		return fmt.Errorf("process not running")
 	}
@@ -104,21 +113,16 @@ func (pm *ProcessManager) StopProcess(pi *ProcessInfo) error {
 	return nil
 }
 
-func (pm *ProcessManager) GetProcess(name string) (*ProcessInfo, error) {
+func (pm *ProcessManager) GetProcess(name string) (*ProcessInformation, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
 	return pm.processes[name], nil
 }
 
-func (pm *ProcessManager) ListProcesses() []*ProcessInfo {
+func (pm *ProcessManager) ListProcesses() (map[string]*ProcessInformation, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
-	processes := make([]*ProcessInfo, 0, len(pm.processes))
-	for _, pi := range pm.processes {
-		processes = append(processes, pi)
-	}
-
-	return processes
+	return pm.processes, nil
 }
