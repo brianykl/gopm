@@ -26,7 +26,7 @@ func NewProcessManager() *ProcessManager {
 	}
 }
 
-func (pm *ProcessManager) StartProcess(name string, command string, args ...string) (*ProcessInformation, error) {
+func (pm *ProcessManager) StartProcess(name string, autoRestart string, command string, args ...string) (*ProcessInformation, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 
@@ -99,9 +99,19 @@ func (pm *ProcessManager) StartProcess(name string, command string, args ...stri
 	return pi, nil
 }
 
-func (pm *ProcessManager) StopProcess(pi *ProcessInformation) error {
+func (pm *ProcessManager) StopProcess(pi *ProcessInformation, force bool) error {
 	if pi.Cmd.Process == nil {
 		return fmt.Errorf("process not running")
+	}
+
+	if force {
+		err := pi.Cmd.Process.Kill()
+		if err != nil {
+			return err
+		}
+
+		pi.Status = "stopped"
+		return nil
 	}
 
 	err := pi.Cmd.Process.Signal(syscall.SIGTERM)
@@ -120,7 +130,7 @@ func (pm *ProcessManager) GetProcess(name string) (*ProcessInformation, error) {
 	return pm.processes[name], nil
 }
 
-func (pm *ProcessManager) ListProcesses() (map[string]*ProcessInformation, error) {
+func (pm *ProcessManager) ListProcesses(verbose bool) (map[string]*ProcessInformation, error) {
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 

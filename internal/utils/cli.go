@@ -33,9 +33,10 @@ func RunStart(client pb.ProcessManagerClient, ctx context.Context, args []string
 	cmdToRun := subcommand[1]
 	procArgs := subcommand[2:]
 	req := &pb.StartRequest{
-		Name:    name,
-		Command: cmdToRun,
-		Args:    procArgs,
+		Name:        name,
+		Command:     cmdToRun,
+		Args:        procArgs,
+		AutoRestart: autoRestart,
 	}
 	res, err := client.StartProcess(ctx, req)
 	if err != nil {
@@ -63,7 +64,10 @@ func RunStop(client pb.ProcessManagerClient, ctx context.Context, args []string)
 	}
 
 	name := subcommand[0]
-	req := &pb.StopRequest{Name: name}
+	req := &pb.StopRequest{
+		Name:  name,
+		Force: force,
+	}
 	res, err := client.StopProcess(ctx, req)
 	if err != nil {
 		return err
@@ -82,7 +86,7 @@ func RunList(client pb.ProcessManagerClient, ctx context.Context, args []string)
 		return err
 	}
 
-	req := &pb.ListRequest{}
+	req := &pb.ListRequest{Verbose: verbose}
 	res, err := client.ListProcess(ctx, req)
 	if err != nil {
 		return err

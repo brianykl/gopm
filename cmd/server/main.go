@@ -21,7 +21,7 @@ func NewProcessManagerServer(manager *pm.ProcessManager) *ProcessManagerServer {
 }
 
 func (pms *ProcessManagerServer) StartProcess(ctx context.Context, req *pb.StartRequest) (*pb.ProcessResponse, error) {
-	pi, err := pms.manager.StartProcess(req.Name, req.Command, req.Args...)
+	pi, err := pms.manager.StartProcess(req.Name, req.AutoRestart, req.Command, req.Args...)
 	if err != nil {
 		return &pb.ProcessResponse{
 			Success: false,
@@ -43,7 +43,7 @@ func (pms *ProcessManagerServer) StopProcess(ctx context.Context, req *pb.StopRe
 		}, err
 	}
 
-	err = pms.manager.StopProcess(pi)
+	err = pms.manager.StopProcess(pi, req.Force)
 	if err != nil {
 		return &pb.ProcessResponse{
 			Success: false,
@@ -58,7 +58,7 @@ func (pms *ProcessManagerServer) StopProcess(ctx context.Context, req *pb.StopRe
 }
 
 func (pms *ProcessManagerServer) ListProcess(ctx context.Context, req *pb.ListRequest) (*pb.ListResponse, error) {
-	processes, err := pms.manager.ListProcesses()
+	processes, err := pms.manager.ListProcesses(req.Verbose)
 	if err != nil {
 		return nil, err
 	}
