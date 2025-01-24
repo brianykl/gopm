@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type ProcessInformation struct {
@@ -33,68 +34,99 @@ func (pm *ProcessManager) StartProcess(name string, autoRestart string, command 
 	if _, exists := pm.processes[name]; exists {
 		return nil, fmt.Errorf("process with name %q already exists", name)
 	}
+
 	fmt.Printf("executing command: %s %v\n", command, args)
-	cmd := exec.Command(command, args...)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-	// cmd.Stdout = os.Stdout
-	// cmd.Stderr = os.Stderr
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
 
 	pi := &ProcessInformation{
-		Cmd:    cmd,
 		Name:   name,
-		PID:    cmd.Process.Pid,
-		Status: "running",
+		Status: "starting",
 	}
+
 	pm.processes[name] = pi
-	fmt.Printf("process %s stored", name)
-	fmt.Println("processes: ", pm.processes)
-	stdoutReader := bufio.NewScanner(stdout)
-	go func() {
-		for stdoutReader.Scan() {
-			line := stdoutReader.Text()
-			fmt.Printf("[STDOUT] %s\n", line)
+	runOnce := func() error {
+		cmd := exec.Command(command, args...)
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return err
 		}
-		if err := stdoutReader.Err(); err != nil {
-			fmt.Printf("error reading stdout: %v\n", err)
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return err
 		}
-	}()
 
-	stderrReader := bufio.NewScanner(stderr)
-	go func() {
-		for stderrReader.Scan() {
-			line := stderrReader.Text()
-			fmt.Printf("[STDERR] %s\n", line)
+		if err := cmd.Start(); err != nil {
+			return err
 		}
-		if err := stderrReader.Err(); err != nil {
-			fmt.Printf("error reading stderr: %v\n", err)
-		}
-	}()
 
-	go func(pi *ProcessInformation) {
-		if waitErr := pi.Cmd.Wait(); waitErr != nil {
-			fmt.Printf("process %s exited with error: %v\n", pi.Name, waitErr)
-		} else {
-			fmt.Printf("process %s exited successfully\n", pi.Name)
-		}
+		pm.mu.Lock()
+		pi.PID = cmd.Process.Pid
+		pi.Status = "running"
+		pm.mu.Unlock()
+
+		go func() {
+			scanner := bufio.NewScanner(stdout)
+			for scanner.Scan() {
+				fmt.Printf("[STDOUT] (%s) %s\n", name, scanner.Text())
+			}
+			if err := scanner.Err(); err != nil {
+				fmt.Printf("error reading stdout: %v\n", err)
+			}
+		}()
+		go func() {
+			scanner := bufio.NewScanner(stderr)
+			for scanner.Scan() {
+				fmt.Printf("[STDERR] (%s) %s\n", name, scanner.Text())
+			}
+			if err := scanner.Err(); err != nil {
+				fmt.Printf("error reading stderr: %v\n", err)
+			}
+		}()
+
+		waitErr := cmd.Wait()
 
 		pm.mu.Lock()
 		pi.Status = "exited"
 		pm.mu.Unlock()
 
-	}(pi)
+		if waitErr != nil {
+			fmt.Printf("process %s exited with error: %v\n", name, waitErr)
+		} else {
+			fmt.Printf("process %s exited successfully\n", name)
+		}
+		return waitErr
+	}
+
+	switch autoRestart {
+	case "always":
+		go func() {
+			for {
+				_ = runOnce()
+				time.Sleep(1 * time.Second) // optional delay
+			}
+		}()
+
+	case "on-failure":
+		go func() {
+			for {
+				waitErr := runOnce()
+				if waitErr == nil {
+					break
+				}
+				time.Sleep(1 * time.Second) // optional delay
+			}
+		}()
+
+	case "never", "":
+		go func() {
+			_ = runOnce()
+		}()
+
+	default:
+		fmt.Printf("unrecognized auto-restart policy: %q (defaulting to never)\n", autoRestart)
+		go func() {
+			_ = runOnce()
+		}()
+	}
 
 	return pi, nil
 }
