@@ -20,6 +20,7 @@ func RunStart(client pb.ProcessManagerClient, ctx context.Context, args []string
 	// e.g. `client start -auto-restart=always myapp ping google.com`
 	err := fs.Parse(args)
 	if err != nil {
+		fmt.Println("bomba")
 		return err
 	}
 
@@ -38,6 +39,8 @@ func RunStart(client pb.ProcessManagerClient, ctx context.Context, args []string
 	}
 	res, err := client.StartProcess(ctx, req)
 	if err != nil {
+		fmt.Println(name, cmdToRun, procArgs)
+		fmt.Println("bomba")
 		return err
 	}
 	fmt.Println(res.Message)

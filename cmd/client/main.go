@@ -31,19 +31,19 @@ func main() {
 	command := os.Args[1]
 	switch command {
 	case "start":
-		err := utils.RunStart(client, ctx, os.Args)
+		err := utils.RunStart(client, ctx, os.Args[2:])
 		if err != nil {
 			fmt.Println("error:", err)
 		}
 
 	case "stop":
-		err := utils.RunStop(client, ctx, os.Args)
+		err := utils.RunStop(client, ctx, os.Args[2:])
 		if err != nil {
 			fmt.Println("error:", err)
 		}
 
 	case "list":
-		err := utils.RunList(client, ctx, os.Args)
+		err := utils.RunList(client, ctx, os.Args[2:])
 		if err != nil {
 			fmt.Println("error:", err)
 		}
