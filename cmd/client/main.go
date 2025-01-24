@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/brianykl/gopm/internal/utils"
 	pb "github.com/brianykl/gopm/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -13,10 +14,8 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: client <start|stop|list> ...")
-		return
+		utils.Usage()
 	}
-	command := os.Args[1]
 
 	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -29,6 +28,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	command := os.Args[1]
 	switch command {
 	case "start":
 		if len(os.Args) < 4 {
