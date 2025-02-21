@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.21.12
-// source: proto/process.proto
+// source: process.proto
 
 package __
 
@@ -22,6 +22,7 @@ const (
 	ProcessManager_StartProcess_FullMethodName = "/processmanager.ProcessManager/StartProcess"
 	ProcessManager_StopProcess_FullMethodName  = "/processmanager.ProcessManager/StopProcess"
 	ProcessManager_ListProcess_FullMethodName  = "/processmanager.ProcessManager/ListProcess"
+	ProcessManager_StreamLogs_FullMethodName   = "/processmanager.ProcessManager/StreamLogs"
 )
 
 // ProcessManagerClient is the client API for ProcessManager service.
@@ -31,6 +32,7 @@ type ProcessManagerClient interface {
 	StartProcess(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*ProcessResponse, error)
 	StopProcess(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*ProcessResponse, error)
 	ListProcess(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
+	StreamLogs(ctx context.Context, in *LogRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogLine], error)
 }
 
 type processManagerClient struct {
@@ -71,6 +73,25 @@ func (c *processManagerClient) ListProcess(ctx context.Context, in *ListRequest,
 	return out, nil
 }
 
+func (c *processManagerClient) StreamLogs(ctx context.Context, in *LogRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogLine], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ProcessManager_ServiceDesc.Streams[0], ProcessManager_StreamLogs_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[LogRequest, LogLine]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProcessManager_StreamLogsClient = grpc.ServerStreamingClient[LogLine]
+
 // ProcessManagerServer is the server API for ProcessManager service.
 // All implementations must embed UnimplementedProcessManagerServer
 // for forward compatibility.
@@ -78,6 +99,7 @@ type ProcessManagerServer interface {
 	StartProcess(context.Context, *StartRequest) (*ProcessResponse, error)
 	StopProcess(context.Context, *StopRequest) (*ProcessResponse, error)
 	ListProcess(context.Context, *ListRequest) (*ListResponse, error)
+	StreamLogs(*LogRequest, grpc.ServerStreamingServer[LogLine]) error
 	mustEmbedUnimplementedProcessManagerServer()
 }
 
@@ -96,6 +118,9 @@ func (UnimplementedProcessManagerServer) StopProcess(context.Context, *StopReque
 }
 func (UnimplementedProcessManagerServer) ListProcess(context.Context, *ListRequest) (*ListResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListProcess not implemented")
+}
+func (UnimplementedProcessManagerServer) StreamLogs(*LogRequest, grpc.ServerStreamingServer[LogLine]) error {
+	return status.Errorf(codes.Unimplemented, "method StreamLogs not implemented")
 }
 func (UnimplementedProcessManagerServer) mustEmbedUnimplementedProcessManagerServer() {}
 func (UnimplementedProcessManagerServer) testEmbeddedByValue()                        {}
@@ -172,6 +197,17 @@ func _ProcessManager_ListProcess_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ProcessManager_StreamLogs_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(LogRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ProcessManagerServer).StreamLogs(m, &grpc.GenericServerStream[LogRequest, LogLine]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProcessManager_StreamLogsServer = grpc.ServerStreamingServer[LogLine]
+
 // ProcessManager_ServiceDesc is the grpc.ServiceDesc for ProcessManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -192,6 +228,12 @@ var ProcessManager_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ProcessManager_ListProcess_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/process.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StreamLogs",
+			Handler:       _ProcessManager_StreamLogs_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "process.proto",
 }

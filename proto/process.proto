@@ -10,6 +10,8 @@ service ProcessManager {
     rpc StopProcess (StopRequest) returns (ProcessResponse);
 
     rpc ListProcess (ListRequest) returns (ListResponse);
+
+    rpc StreamLogs (LogRequest) returns (stream LogLine);
 }
 
 message StartRequest {
@@ -28,6 +30,11 @@ message ListRequest {
     bool verbose = 1;
 }
 
+message LogRequest {
+  string name = 1;     
+  bool follow = 2;     
+}
+
 message ProcessResponse {
     bool success = 1;
     string message = 2;
@@ -41,4 +48,9 @@ message ProcessInfo {
 
 message ListResponse {
     repeated ProcessInfo processes = 1;
+}
+
+message LogLine {
+  string text = 1;
+  // optional timestamp or log level fields
 }
