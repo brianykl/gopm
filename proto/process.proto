@@ -39,6 +39,7 @@ message LogRequest {
 
 message RemoveRequest {
     string name = 1;
+    string noStop = 2;
 }
 
 message ProcessResponse {
