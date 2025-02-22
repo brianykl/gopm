@@ -17,13 +17,15 @@ type ProcessInformation struct {
 }
 
 type ProcessManager struct {
-	mu        sync.Mutex
-	processes map[string]*ProcessInformation
+	mu          sync.Mutex
+	processes   map[string]*ProcessInformation
+	logChannels map[string]chan string
 }
 
 func NewProcessManager() *ProcessManager {
 	return &ProcessManager{
-		processes: make(map[string]*ProcessInformation),
+		processes:   make(map[string]*ProcessInformation),
+		logChannels: make(map[string]chan string),
 	}
 }
 
@@ -37,6 +39,10 @@ func (pm *ProcessManager) StartProcess(name string, autoRestart string, command 
 
 	fmt.Printf("executing command: %s %v\n", command, args)
 
+	if _, ok := pm.logChannels[name]; !ok {
+		pm.logChannels[name] = make(chan string, 100) // buffer size can be adjusted
+	}
+
 	pi := &ProcessInformation{
 		Name:   name,
 		Status: "starting",
@@ -45,6 +51,11 @@ func (pm *ProcessManager) StartProcess(name string, autoRestart string, command 
 	pm.processes[name] = pi
 	runOnce := func() error {
 		cmd := exec.Command(command, args...)
+
+		pm.mu.Lock()
+		pi.Cmd = cmd
+		pm.mu.Unlock()
+
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			return err
@@ -66,7 +77,12 @@ func (pm *ProcessManager) StartProcess(name string, autoRestart string, command 
 		go func() {
 			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
-				fmt.Printf("[STDOUT] (%s) %s\n", name, scanner.Text())
+				line := scanner.Text()
+				fmt.Printf("[STDOUT] (%s) %s\n", name, line)
+
+				pm.mu.Lock()
+				pm.logChannels[name] <- line
+				pm.mu.Unlock()
 			}
 			if err := scanner.Err(); err != nil {
 				fmt.Printf("error reading stdout: %v\n", err)
@@ -132,10 +148,11 @@ func (pm *ProcessManager) StartProcess(name string, autoRestart string, command 
 }
 
 func (pm *ProcessManager) StopProcess(pi *ProcessInformation, force bool) error {
+	fmt.Printf("DEBUG: pm=%p, pi=%+v\n", pm, pi)
 	if pi.Cmd.Process == nil {
 		return fmt.Errorf("process not running")
 	}
-
+	fmt.Println("bongo")
 	if force {
 		err := pi.Cmd.Process.Kill()
 		if err != nil {
@@ -167,4 +184,9 @@ func (pm *ProcessManager) ListProcesses(verbose bool) (map[string]*ProcessInform
 	defer pm.mu.Unlock()
 
 	return pm.processes, nil
+}
+
+func (pm *ProcessManager) GetLogChannels() map[string]chan string {
+
+	return pm.logChannels
 }

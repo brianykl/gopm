@@ -48,6 +48,12 @@ func main() {
 			fmt.Println("error:", err)
 		}
 
+	case "log":
+		err := utils.RunLogs(client, ctx, os.Args[2:])
+		if err != nil {
+			fmt.Println("error:", err)
+		}
+
 	default:
 		fmt.Println("Unknown command:", command)
 	}

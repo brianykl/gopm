@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 
 	pb "github.com/brianykl/gopm/proto"
 )
@@ -20,7 +21,7 @@ func RunStart(client pb.ProcessManagerClient, ctx context.Context, args []string
 	// e.g. `client start -auto-restart=always myapp ping google.com`
 	err := fs.Parse(args)
 	if err != nil {
-		fmt.Println("bomba")
+		// fmt.Println("bomba")
 		return err
 	}
 
@@ -101,6 +102,35 @@ func RunList(client pb.ProcessManagerClient, ctx context.Context, args []string)
 	return nil
 }
 
-func ParseFlag(args []string) {
+func RunLogs(client pb.ProcessManagerClient, ctx context.Context, args []string) error {
+	fs := flag.NewFlagSet("logs", flag.ContinueOnError)
+	var follow bool
+	fs.BoolVar(&follow, "follow", false, "follow logs in real time")
 
+	err := fs.Parse(args)
+	if err != nil {
+		return err
+	}
+
+	subcommand := fs.Args()
+	// maybe handle incorrect num of args here
+	name := subcommand[0]
+
+	req := &pb.LogRequest{Name: name, Follow: follow}
+	stream, err := client.StreamLogs(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to open log stream %s", err)
+	}
+
+	for {
+		line, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("error recieving log data: %v", err)
+		}
+		fmt.Println(line.Text)
+	}
+	return nil
 }

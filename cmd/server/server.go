@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	pm "github.com/brianykl/gopm/internal/process"
 	pb "github.com/brianykl/gopm/proto"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type ProcessManagerServer struct {
@@ -42,7 +45,7 @@ func (pms *ProcessManagerServer) StopProcess(ctx context.Context, req *pb.StopRe
 			Message: fmt.Sprintf("invalid process name: %v", err),
 		}, err
 	}
-
+	fmt.Printf("bongo pi=%+v\n", pi)
 	err = pms.manager.StopProcess(pi, req.Force)
 	if err != nil {
 		return &pb.ProcessResponse{
@@ -73,6 +76,37 @@ func (pms *ProcessManagerServer) ListProcess(ctx context.Context, req *pb.ListRe
 	}
 
 	return &pb.ListResponse{Processes: pbProcesses}, nil
+}
+
+func (pms *ProcessManagerServer) StreamLogs(req *pb.LogRequest, stream pb.ProcessManager_StreamLogsServer) error {
+	name := req.Name
+	follow := req.Follow
+
+	channel, ok := pms.manager.GetLogChannels()[name]
+	if !ok {
+		return status.Errorf(codes.NotFound, "no logs to process %s", name)
+	}
+
+	for {
+		select {
+		case line, open := <-channel:
+			if !open {
+				return nil
+			}
+			err := stream.Send(&pb.LogLine{Text: line})
+			if err != nil {
+				return err
+			}
+
+		default:
+			if !follow {
+				return nil
+			}
+
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
 }
 
 func main() {

@@ -1,0 +1,3 @@
+# gopm: a simple process manager
+
+usage: ./client <start|stop|list> ...
