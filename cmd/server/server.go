@@ -109,6 +109,18 @@ func (pms *ProcessManagerServer) StreamLogs(req *pb.LogRequest, stream pb.Proces
 
 }
 
+func (pms *ProcessManagerServer) RemoveProcess(ctx context.Context, req *pb.RemoveRequest) (*pb.ProcessResponse, error) {
+	pi, err := pms.manager.GetProcess(req.Name)
+	if err != nil {
+		return &pb.ProcessResponse{
+			Success: false,
+			Message: fmt.Sprintf("invalid process name: %v", err),
+		}, err
+	}
+	fmt.Printf("pi=%+v\n", pi)
+	panic("unimplemented")
+}
+
 func main() {
 	manager := pm.NewProcessManager()
 	grpcServer := grpc.NewServer()

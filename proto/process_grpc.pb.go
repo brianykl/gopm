@@ -19,10 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ProcessManager_StartProcess_FullMethodName = "/processmanager.ProcessManager/StartProcess"
-	ProcessManager_StopProcess_FullMethodName  = "/processmanager.ProcessManager/StopProcess"
-	ProcessManager_ListProcess_FullMethodName  = "/processmanager.ProcessManager/ListProcess"
-	ProcessManager_StreamLogs_FullMethodName   = "/processmanager.ProcessManager/StreamLogs"
+	ProcessManager_StartProcess_FullMethodName  = "/processmanager.ProcessManager/StartProcess"
+	ProcessManager_StopProcess_FullMethodName   = "/processmanager.ProcessManager/StopProcess"
+	ProcessManager_ListProcess_FullMethodName   = "/processmanager.ProcessManager/ListProcess"
+	ProcessManager_StreamLogs_FullMethodName    = "/processmanager.ProcessManager/StreamLogs"
+	ProcessManager_RemoveProcess_FullMethodName = "/processmanager.ProcessManager/RemoveProcess"
 )
 
 // ProcessManagerClient is the client API for ProcessManager service.
@@ -33,6 +34,7 @@ type ProcessManagerClient interface {
 	StopProcess(ctx context.Context, in *StopRequest, opts ...grpc.CallOption) (*ProcessResponse, error)
 	ListProcess(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
 	StreamLogs(ctx context.Context, in *LogRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[LogLine], error)
+	RemoveProcess(ctx context.Context, in *RemoveRequest, opts ...grpc.CallOption) (*ProcessResponse, error)
 }
 
 type processManagerClient struct {
@@ -92,6 +94,16 @@ func (c *processManagerClient) StreamLogs(ctx context.Context, in *LogRequest, o
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ProcessManager_StreamLogsClient = grpc.ServerStreamingClient[LogLine]
 
+func (c *processManagerClient) RemoveProcess(ctx context.Context, in *RemoveRequest, opts ...grpc.CallOption) (*ProcessResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProcessResponse)
+	err := c.cc.Invoke(ctx, ProcessManager_RemoveProcess_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProcessManagerServer is the server API for ProcessManager service.
 // All implementations must embed UnimplementedProcessManagerServer
 // for forward compatibility.
@@ -100,6 +112,7 @@ type ProcessManagerServer interface {
 	StopProcess(context.Context, *StopRequest) (*ProcessResponse, error)
 	ListProcess(context.Context, *ListRequest) (*ListResponse, error)
 	StreamLogs(*LogRequest, grpc.ServerStreamingServer[LogLine]) error
+	RemoveProcess(context.Context, *RemoveRequest) (*ProcessResponse, error)
 	mustEmbedUnimplementedProcessManagerServer()
 }
 
@@ -121,6 +134,9 @@ func (UnimplementedProcessManagerServer) ListProcess(context.Context, *ListReque
 }
 func (UnimplementedProcessManagerServer) StreamLogs(*LogRequest, grpc.ServerStreamingServer[LogLine]) error {
 	return status.Errorf(codes.Unimplemented, "method StreamLogs not implemented")
+}
+func (UnimplementedProcessManagerServer) RemoveProcess(context.Context, *RemoveRequest) (*ProcessResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveProcess not implemented")
 }
 func (UnimplementedProcessManagerServer) mustEmbedUnimplementedProcessManagerServer() {}
 func (UnimplementedProcessManagerServer) testEmbeddedByValue()                        {}
@@ -208,6 +224,24 @@ func _ProcessManager_StreamLogs_Handler(srv interface{}, stream grpc.ServerStrea
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ProcessManager_StreamLogsServer = grpc.ServerStreamingServer[LogLine]
 
+func _ProcessManager_RemoveProcess_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProcessManagerServer).RemoveProcess(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProcessManager_RemoveProcess_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProcessManagerServer).RemoveProcess(ctx, req.(*RemoveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProcessManager_ServiceDesc is the grpc.ServiceDesc for ProcessManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -226,6 +260,10 @@ var ProcessManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListProcess",
 			Handler:    _ProcessManager_ListProcess_Handler,
+		},
+		{
+			MethodName: "RemoveProcess",
+			Handler:    _ProcessManager_RemoveProcess_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

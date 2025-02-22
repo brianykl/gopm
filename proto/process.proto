@@ -12,6 +12,8 @@ service ProcessManager {
     rpc ListProcess (ListRequest) returns (ListResponse);
 
     rpc StreamLogs (LogRequest) returns (stream LogLine);
+
+    rpc RemoveProcess (RemoveRequest) returns (ProcessResponse);
 }
 
 message StartRequest {
@@ -33,6 +35,10 @@ message ListRequest {
 message LogRequest {
   string name = 1;     
   bool follow = 2;     
+}
+
+message RemoveRequest {
+    string name = 1;
 }
 
 message ProcessResponse {

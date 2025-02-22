@@ -190,3 +190,8 @@ func (pm *ProcessManager) GetLogChannels() map[string]chan string {
 
 	return pm.logChannels
 }
+
+func (pm *ProcessManager) RemoveProcess(pi *ProcessInformation) {
+	// should stop if not stopped and then remove
+
+}

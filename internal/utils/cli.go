@@ -134,3 +134,19 @@ func RunLogs(client pb.ProcessManagerClient, ctx context.Context, args []string)
 	}
 	return nil
 }
+
+func RunRemove(client pb.ProcessManagerClient, ctx context.Context, args []string) error {
+	// do some flag stuff
+	// do input validation on args
+
+	subcommand := args
+	name := subcommand[0]
+
+	req := &pb.RemoveRequest{Name: name}
+	res, err := client.RemoveProcess(ctx, req)
+	if err != nil {
+		return err
+	}
+	fmt.Println(res.Message)
+	return nil
+}
