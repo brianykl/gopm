@@ -5,12 +5,42 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 
+	"github.com/brianykl/gopm/internal/server"
 	pb "github.com/brianykl/gopm/proto"
 )
 
 func Usage() {
 	fmt.Println("usage: client <start|stop|list> ...")
+}
+
+func RunServer(args []string) error {
+	// fs := flag.NewFlagSet("bg", flag.ContinueOnError)
+	// var runInBg bool
+	// fs.BoolVar(&runInBg, "background", false, "run server in background")
+	// err := fs.Parse(args)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// subcommand := fs.Args()
+	// if len(subcommand) > 1 {
+	// 	return fmt.Errorf("usage: gopm init <flag>")
+	// }
+
+	server.StartServer()
+	return nil
+}
+
+func RunServerInBackground(args []string) error {
+	cmd := exec.Command(os.Args[0], "init")
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start server in background: %v", err)
+	}
+	fmt.Printf("Server started in background (PID %d)\n", cmd.Process.Pid)
+	return nil
 }
 
 func RunStart(client pb.ProcessManagerClient, ctx context.Context, args []string) error {
@@ -103,7 +133,7 @@ func RunList(client pb.ProcessManagerClient, ctx context.Context, args []string)
 }
 
 func RunLogs(client pb.ProcessManagerClient, ctx context.Context, args []string) error {
-	fs := flag.NewFlagSet("logs", flag.ContinueOnError)
+	fs := flag.NewFlagSet("log", flag.ContinueOnError)
 	var follow bool
 	fs.BoolVar(&follow, "follow", false, "follow logs in real time")
 
@@ -113,7 +143,9 @@ func RunLogs(client pb.ProcessManagerClient, ctx context.Context, args []string)
 	}
 
 	subcommand := fs.Args()
-	// maybe handle incorrect num of args here
+	if len(subcommand) < 1 || len(subcommand) > 2 {
+		return fmt.Errorf("usage: client log <flag>")
+	}
 	name := subcommand[0]
 
 	req := &pb.LogRequest{Name: name, Follow: follow}
@@ -136,10 +168,20 @@ func RunLogs(client pb.ProcessManagerClient, ctx context.Context, args []string)
 }
 
 func RunRemove(client pb.ProcessManagerClient, ctx context.Context, args []string) error {
-	// do some flag stuff
-	// do input validation on args
+	fs := flag.NewFlagSet("remove", flag.ContinueOnError)
+	var follow bool
+	fs.BoolVar(&follow, "no-stop", false, "remove process without stopping it")
 
-	subcommand := args
+	err := fs.Parse(args)
+	if err != nil {
+		return err
+	}
+
+	subcommand := fs.Args()
+	if len(subcommand) < 1 || len(subcommand) > 3 {
+		return fmt.Errorf("usage: client remove <flag> <name>")
+	}
+
 	name := subcommand[0]
 
 	req := &pb.RemoveRequest{Name: name}
